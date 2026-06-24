@@ -1,0 +1,42 @@
+{
+  "name": "AI Auto-Clipper",
+  "description": "AI-powered viral video clipping SaaS",
+  "repository": "https://github.com/your-username/ai-auto-clipper-2",
+  "keywords": ["node", "express", "stripe", "mongodb"],
+  "buildpacks": [
+    {
+      "url": "heroku/nodejs"
+    }
+  ],
+  "env": {
+    "MONGODB_URI": {
+      "description": "MongoDB connection string",
+      "required": true
+    },
+    "JWT_SECRET": {
+      "description": "Secret key for JWT tokens",
+      "required": true,
+      "value": "your-jwt-secret-key"
+    },
+    "STRIPE_PUBLIC_KEY": {
+      "description": "Stripe Public Key",
+      "required": true
+    },
+    "STRIPE_SECRET_KEY": {
+      "description": "Stripe Secret Key",
+      "required": true
+    },
+    "EMAIL_USER": {
+      "description": "Gmail email address",
+      "required": true
+    },
+    "EMAIL_PASSWORD": {
+      "description": "Gmail app password",
+      "required": true
+    },
+    "PORT": {
+      "description": "Port",
+      "value": "3000"
+    }
+  }
+}
