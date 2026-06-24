@@ -1,9 +1,18 @@
 const express = require('express');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || 'sk_test_your_key_here');
 const app = express();
 
 app.use(express.json());
+app.use(express.static('public'));
 
-// Landing Page HTML (embedded)
+// ========== PRICING TIERS ==========
+const plans = {
+  starter: { id: 'starter', name: 'Starter', price: 900, priceDisplay: '$9', description: '5 videos/month' },
+  pro: { id: 'pro', name: 'Pro', price: 4900, priceDisplay: '$49', description: '50 videos/month' },
+  agency: { id: 'agency', name: 'Agency', price: 19900, priceDisplay: '$199', description: 'Unlimited videos' }
+};
+
+// ========== LANDING PAGE HTML ==========
 const landingPageHTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -149,46 +158,6 @@ const landingPageHTML = `<!DOCTYPE html>
       color: #667eea;
     }
     
-    .feature-card p {
-      color: #666;
-      line-height: 1.8;
-    }
-    
-    .how-it-works {
-      padding: 4rem 2rem;
-      background: white;
-    }
-    
-    .how-it-works-container {
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-    
-    .steps {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 2rem;
-      margin-top: 2rem;
-    }
-    
-    .step {
-      text-align: center;
-    }
-    
-    .step-number {
-      background: #667eea;
-      color: white;
-      width: 50px;
-      height: 50px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: bold;
-      font-size: 1.5rem;
-      margin: 0 auto 1rem;
-    }
-    
     .pricing {
       padding: 4rem 2rem;
       background: #f8f9fa;
@@ -213,6 +182,7 @@ const landingPageHTML = `<!DOCTYPE html>
       box-shadow: 0 5px 15px rgba(0,0,0,0.08);
       position: relative;
       transition: transform 0.3s ease;
+      text-align: center;
     }
     
     .pricing-card:hover {
@@ -262,45 +232,22 @@ const landingPageHTML = `<!DOCTYPE html>
       margin-right: 0.5rem;
     }
     
-    .testimonials {
-      padding: 4rem 2rem;
-      background: white;
-    }
-    
-    .testimonials-container {
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-    
-    .testimonials-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 2rem;
-      margin-top: 2rem;
-    }
-    
-    .testimonial {
-      background: #f8f9fa;
-      padding: 2rem;
-      border-radius: 10px;
-      border-left: 4px solid #667eea;
-    }
-    
-    .testimonial p {
-      font-style: italic;
-      color: #666;
-      margin-bottom: 1rem;
-      line-height: 1.8;
-    }
-    
-    .testimonial-author {
+    .checkout-btn {
+      background: #667eea;
+      color: white;
+      padding: 0.75rem 2rem;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
       font-weight: bold;
-      color: #333;
+      font-size: 1rem;
+      width: 100%;
+      margin-top: 1rem;
+      transition: background 0.3s;
     }
     
-    .testimonial-role {
-      color: #667eea;
-      font-size: 0.9rem;
+    .checkout-btn:hover {
+      background: #764ba2;
     }
     
     .cta-section {
@@ -315,12 +262,6 @@ const landingPageHTML = `<!DOCTYPE html>
       margin-bottom: 1.5rem;
     }
     
-    .cta-section p {
-      font-size: 1.1rem;
-      margin-bottom: 2rem;
-      opacity: 0.95;
-    }
-    
     footer {
       background: #333;
       color: white;
@@ -328,31 +269,12 @@ const landingPageHTML = `<!DOCTYPE html>
       text-align: center;
     }
     
-    footer a {
-      color: #667eea;
-      text-decoration: none;
-    }
-    
-    footer a:hover {
-      text-decoration: underline;
-    }
-    
     @media (max-width: 768px) {
       .hero h1 {
         font-size: 2rem;
       }
-      
-      nav a {
-        margin: 0 0.5rem;
-        font-size: 0.8rem;
-      }
-      
       .pricing-card.featured {
         transform: scale(1);
-      }
-      
-      .section-title {
-        font-size: 1.8rem;
       }
     }
   </style>
@@ -364,7 +286,6 @@ const landingPageHTML = `<!DOCTYPE html>
       <div>
         <a href="#features">Features</a>
         <a href="#pricing">Pricing</a>
-        <a href="#contact">Contact</a>
       </div>
     </nav>
   </header>
@@ -372,9 +293,8 @@ const landingPageHTML = `<!DOCTYPE html>
   <section class="hero">
     <div class="hero-content">
       <h1>Turn Viral Videos Into Daily Posts</h1>
-      <p>AI Auto-Clipper finds the best moments in videos and creates ready-to-post clips automatically. Save hours on editing. Post more. Grow faster.</p>
-      <button class="cta-button">Start Free Trial</button>
-      <button class="cta-button cta-button-secondary">Watch Demo</button>
+      <p>AI Auto-Clipper finds the best moments and creates ready-to-post clips automatically.</p>
+      <button class="cta-button" onclick="document.getElementById('pricing').scrollIntoView({behavior: 'smooth'})">Start Free Trial</button>
     </div>
   </section>
 
@@ -397,49 +317,6 @@ const landingPageHTML = `<!DOCTYPE html>
           <h3>Multi-Platform Ready</h3>
           <p>Clips automatically sized for TikTok, Instagram Reels, YouTube Shorts & more.</p>
         </div>
-        <div class="feature-card">
-          <div class="feature-icon">📊</div>
-          <h3>Analytics Built-In</h3>
-          <p>Track clip performance, engagement, and audience growth in one dashboard.</p>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">🔄</div>
-          <h3>Daily Automation</h3>
-          <p>Set it and forget it. Clips are created and ready every morning at 6 AM.</p>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">🎯</div>
-          <h3>Viral Hook Detection</h3>
-          <p>AI finds the exact moments that get likes, comments, and shares.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="how-it-works">
-    <div class="how-it-works-container">
-      <h2 class="section-title">How It Works</h2>
-      <div class="steps">
-        <div class="step">
-          <div class="step-number">1</div>
-          <h3>Upload Video</h3>
-          <p>Drop your raw footage or YouTube link</p>
-        </div>
-        <div class="step">
-          <div class="step-number">2</div>
-          <h3>AI Analyzes</h3>
-          <p>Our AI scans for viral moments in seconds</p>
-        </div>
-        <div class="step">
-          <div class="step-number">3</div>
-          <h3>Auto-Create Clips</h3>
-          <p>Perfect clips are generated automatically</p>
-        </div>
-        <div class="step">
-          <div class="step-number">4</div>
-          <h3>Post & Grow</h3>
-          <p>Download and share across all platforms</p>
-        </div>
       </div>
     </div>
   </section>
@@ -451,14 +328,13 @@ const landingPageHTML = `<!DOCTYPE html>
         <div class="pricing-card">
           <h3>Starter</h3>
           <div class="price">$9<span class="price-period">/month</span></div>
-          <p>Perfect for content creators just starting</p>
+          <p>Perfect for creators just starting</p>
           <ul class="pricing-features">
             <li>5 videos/month</li>
             <li>Unlimited clips</li>
             <li>Basic analytics</li>
-            <li>Email support</li>
           </ul>
-          <button class="cta-button">Get Started</button>
+          <button class="checkout-btn" onclick="startCheckout('starter')">Start Now</button>
         </div>
         
         <div class="pricing-card featured">
@@ -469,101 +345,277 @@ const landingPageHTML = `<!DOCTYPE html>
             <li>50 videos/month</li>
             <li>Unlimited clips</li>
             <li>Advanced analytics</li>
-            <li>Priority support</li>
             <li>Daily automation</li>
-            <li>Custom branding</li>
           </ul>
-          <button class="cta-button">Start Free Trial</button>
+          <button class="checkout-btn" onclick="startCheckout('pro')">Start Now</button>
         </div>
         
         <div class="pricing-card">
           <h3>Agency</h3>
           <div class="price">$199<span class="price-period">/month</span></div>
-          <p>For agencies managing multiple channels</p>
+          <p>For managing multiple channels</p>
           <ul class="pricing-features">
             <li>Unlimited videos</li>
             <li>Unlimited clips</li>
-            <li>Full analytics suite</li>
-            <li>Dedicated support</li>
-            <li>Team collaboration</li>
-            <li>API access</li>
+            <li>Full analytics</li>
+            <li>Team support</li>
           </ul>
-          <button class="cta-button">Contact Sales</button>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="testimonials">
-    <div class="testimonials-container">
-      <h2 class="section-title">What Creators Love</h2>
-      <div class="testimonials-grid">
-        <div class="testimonial">
-          <p>"AI Auto-Clipper saved me 15 hours a week on editing. My channel grew 3x in one month!"</p>
-          <div class="testimonial-author">Sarah Chen</div>
-          <div class="testimonial-role">YouTube Creator • 250K subscribers</div>
-        </div>
-        <div class="testimonial">
-          <p>"The viral detection is insane. My clips get 10x more engagement than manually edited ones."</p>
-          <div class="testimonial-author">Marcus Johnson</div>
-          <div class="testimonial-role">TikTok Creator • 500K followers</div>
-        </div>
-        <div class="testimonial">
-          <p>"This is a game changer for agencies. We now manage 20 channels with one person."</p>
-          <div class="testimonial-author">David Park</div>
-          <div class="testimonial-role">Social Media Agency Owner</div>
+          <button class="checkout-btn" onclick="startCheckout('agency')">Start Now</button>
         </div>
       </div>
     </div>
   </section>
 
   <section class="cta-section">
-    <h2>Ready to 10x Your Content Output?</h2>
-    <p>Join 500+ creators already automating their clips with AI Auto-Clipper</p>
-    <button class="cta-button">Start Your Free Trial Today</button>
+    <h2>Ready to automate your clips?</h2>
+    <p>Join creators already saving hours every week with AI Auto-Clipper</p>
   </section>
 
   <footer>
-    <p>&copy; 2024 AI Auto-Clipper. All rights reserved. | <a href="#">Privacy</a> | <a href="#">Terms</a> | <a href="#">Contact</a></p>
+    <p>&copy; 2024 AI Auto-Clipper. All rights reserved.</p>
   </footer>
+
+  <script>
+    function startCheckout(plan) {
+      console.log('Starting checkout for plan:', plan);
+      fetch('/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ plan: plan })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.url) {
+          window.location.href = data.url;
+        } else {
+          alert('Error: ' + (data.error || 'Unknown error'));
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        alert('Error starting checkout');
+      });
+    }
+  </script>
 </body>
 </html>`;
 
-// Serve landing page
-app.get('/landing-page.html', (req, res) => {
+// ========== SUCCESS PAGE ==========
+const successPageHTML = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Payment Successful - AI Auto-Clipper</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+    .container {
+      background: white;
+      padding: 3rem;
+      border-radius: 10px;
+      text-align: center;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      max-width: 500px;
+    }
+    .checkmark {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 0.5rem;
+    }
+    p {
+      color: #666;
+      margin-bottom: 2rem;
+    }
+    .button {
+      display: inline-block;
+      background: #667eea;
+      color: white;
+      padding: 1rem 2rem;
+      border-radius: 50px;
+      text-decoration: none;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .button:hover {
+      background: #764ba2;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="checkmark">✅</div>
+    <h1>Payment Successful!</h1>
+    <p>Thank you for subscribing to AI Auto-Clipper. Your account is ready to use!</p>
+    <p>Check your email for login details and next steps.</p>
+    <a href="/" class="button">Go to Dashboard</a>
+  </div>
+</body>
+</html>`;
+
+// ========== CANCEL PAGE ==========
+const cancelPageHTML = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Payment Cancelled - AI Auto-Clipper</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+    .container {
+      background: white;
+      padding: 3rem;
+      border-radius: 10px;
+      text-align: center;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      max-width: 500px;
+    }
+    .icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 0.5rem;
+    }
+    p {
+      color: #666;
+      margin-bottom: 2rem;
+    }
+    .button {
+      display: inline-block;
+      background: #667eea;
+      color: white;
+      padding: 1rem 2rem;
+      border-radius: 50px;
+      text-decoration: none;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .button:hover {
+      background: #764ba2;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">⏸️</div>
+    <h1>Payment Cancelled</h1>
+    <p>No worries! You can try again anytime. We're here when you're ready.</p>
+    <a href="/" class="button">Back to Home</a>
+  </div>
+</body>
+</html>`;
+
+// ========== ROUTES ==========
+
+// Landing page (root)
+app.get('/', (req, res) => {
   res.setHeader('Content-Type', 'text/html');
   res.send(landingPageHTML);
 });
 
-app.get('/landing-page', (req, res) => {
-  res.redirect('/landing-page.html');
+// Create checkout session
+app.post('/create-checkout-session', async (req, res) => {
+  try {
+    const { plan } = req.body;
+    
+    if (!plans[plan]) {
+      return res.status(400).json({ error: 'Invalid plan' });
+    }
+    
+    const selectedPlan = plans[plan];
+    
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price_data: {
+            currency: 'usd',
+            product_data: {
+              name: \`AI Auto-Clipper - \${selectedPlan.name}\`,
+              description: selectedPlan.description,
+            },
+            unit_amount: selectedPlan.price,
+            recurring: {
+              interval: 'month',
+              interval_count: 1,
+            },
+          },
+          quantity: 1,
+        },
+      ],
+      mode: 'subscription',
+      success_url: \`\${process.env.DOMAIN || 'https://web-production-42ad7.up.railway.app'}/success.html\`,
+      cancel_url: \`\${process.env.DOMAIN || 'https://web-production-42ad7.up.railway.app'}/cancel.html\`,
+    });
+    
+    res.json({ url: session.url });
+  } catch (error) {
+    console.error('Error creating checkout:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Success page
+app.get('/success.html', (req, res) => {
+  res.setHeader('Content-Type', 'text/html');
+  res.send(successPageHTML);
+});
+
+// Cancel page
+app.get('/cancel.html', (req, res) => {
+  res.setHeader('Content-Type', 'text/html');
+  res.send(cancelPageHTML);
 });
 
 // Health check
-app.get('/', (req, res) => {
+app.get('/api/health', (req, res) => {
   res.json({ 
     message: 'AI Auto-Clipper API is running!',
     status: 'online'
   });
 });
 
-// Auth endpoints
-app.post('/api/auth/signup', (req, res) => {
-  res.json({ success: true, message: 'Signup works!' });
-});
-
-app.post('/api/auth/login', (req, res) => {
-  res.json({ success: true, token: 'mock-token-123' });
-});
-
-// Clips endpoint
-app.get('/api/clips/:userId', (req, res) => {
-  res.json([
-    { id: 1, title: 'Sample Clip', status: 'ready', duration: 30 }
-  ]);
-});
-
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(\`Server running on port \${PORT}\`);
 });
+{
+  "name": "ai-auto-clipper",
+  "version": "1.0.0",
+  "description": "AI-powered video clipping SaaS",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "stripe": "^14.0.0",
+    "dotenv": "^16.0.3",
+    "cors": "^2.8.5"
+  }
+}
