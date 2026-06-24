@@ -603,19 +603,3 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(\`Server running on port \${PORT}\`);
 });
-{
-  "name": "ai-auto-clipper",
-  "version": "1.0.0",
-  "description": "AI-powered video clipping SaaS",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js"
-  },
-  "dependencies": {
-    "express": "^4.18.2",
-    "stripe": "^14.0.0",
-    "dotenv": "^16.0.3",
-    "cors": "^2.8.5"
-  }
-}
